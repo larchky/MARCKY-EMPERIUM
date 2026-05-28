@@ -1,0 +1,625 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { FormEvent, useEffect, useState } from "react";
+import {
+  FiChevronDown,
+  FiCreditCard,
+  FiHeart,
+  FiPackage,
+  FiSearch,
+  FiShield,
+  FiShoppingBag,
+  FiStar,
+  FiTruck,
+  FiUser,
+} from "react-icons/fi";
+import { supabase } from "@/lib/supabaseClient";
+import { getProductStock, type Product } from "@/lib/productImages";
+import BrandLogo from "@/app/components/BrandLogo";
+import CartLink from "@/app/components/CartLink";
+import StoreProductCard from "@/app/components/StoreProductCard";
+
+const megaNav = [
+  {
+    title: "NEW & RESTOCK",
+    groups: [
+      {
+        title: "Drops",
+        links: ["New arrivals", "Back in stock", "Best sellers"],
+      },
+      {
+        title: "Fast edits",
+        links: ["Giftable pieces", "Low stock alerts", "Wholesale packs"],
+      },
+    ],
+  },
+  {
+    title: "HANDBAGS",
+    groups: [
+      {
+        title: "Shop by category",
+        links: ["Totes", "Satchels", "Crossbody bags", "Clutches"],
+      },
+      {
+        title: "Collections",
+        links: ["Structured bags", "Soft carryalls", "Event bags"],
+      },
+    ],
+  },
+  {
+    title: "NIGHTWEAR",
+    groups: [
+      {
+        title: "Sleep shop",
+        links: ["Satin sets", "Robes", "Loungewear", "Slips"],
+      },
+      {
+        title: "Buyer edits",
+        links: ["Soft neutrals", "Gift sets", "Weekend restocks"],
+      },
+    ],
+  },
+  {
+    title: "ACCESSORIES",
+    groups: [
+      {
+        title: "Finishing pieces",
+        links: ["Wallets", "Straps", "Jewelry", "Hair accessories"],
+      },
+      {
+        title: "Occasion",
+        links: ["Game day", "Travel", "Evening", "Everyday"],
+      },
+    ],
+  },
+];
+
+const promoTiles = [
+  {
+    title: "Handbag wall",
+    copy: "Structured totes, crossbody bags, clutches, and easy event pieces.",
+    href: "/products",
+  },
+  {
+    title: "Nightwear edit",
+    copy: "Soft sets, robes, slips, and loungewear for quick boutique refreshes.",
+    href: "/products",
+  },
+];
+
+const collectionTiles = [
+  "Back in stock",
+  "Totes",
+  "Crossbody bags",
+  "Nightwear sets",
+  "Accessories",
+  "Giftable picks",
+  "Event pieces",
+  "New arrivals",
+];
+
+const promiseStrip = [
+  {
+    icon: FiShield,
+    title: "Wholesale only",
+    copy: "A buyer-first catalog built around boutique restocks.",
+  },
+  {
+    icon: FiTruck,
+    title: "Dispatch ready",
+    copy: "Stock counts and cart checks help keep orders practical.",
+  },
+  {
+    icon: FiCreditCard,
+    title: "Secure checkout",
+    copy: "Cart payment stays connected to the existing checkout flow.",
+  },
+];
+
+const buyerNotes = [
+  {
+    title: "Great mix for small boutiques",
+    copy: "Curated fashion pieces make it easier to build a focused restock.",
+  },
+  {
+    title: "Easy to shop by category",
+    copy: "Handbags, nightwear, accessories, and new stock are surfaced quickly.",
+  },
+  {
+    title: "Clear product decisions",
+    copy: "Product cards show stock, price, photos, and add-to-cart actions.",
+  },
+];
+
+function scrollToCatalog() {
+  document.getElementById("catalog")?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+}
+
+export default function Home() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      const { data, error } = await supabase.from("products").select("*");
+
+      if (!error) {
+        setProducts(data || []);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredProducts = products.filter((product) => {
+    const searchableText = `${product.name} ${product.description || ""}`;
+    return searchableText.toLowerCase().includes(normalizedSearch);
+  });
+  const newArrivals = filteredProducts.slice(0, 8);
+  const restocks = filteredProducts
+    .filter((product) => getProductStock(product) > 0)
+    .slice(0, 8);
+  const buyerFavorites = filteredProducts.slice(2, 10);
+  const hasSearchResults = filteredProducts.length > 0;
+
+  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    scrollToCatalog();
+  };
+
+  const renderProductRail = (
+    title: string,
+    copy: string,
+    items: Product[],
+    badge: string
+  ) => {
+    if (products.length === 0 || items.length === 0) return null;
+
+    return (
+      <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
+        <div className="mb-6 flex flex-col justify-between gap-3 border-b border-[#e8ded4] pb-4 md:flex-row md:items-end">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#b26a34]">
+              {badge}
+            </p>
+            <h2 className="mt-2 text-2xl font-black text-[#1e1b18] sm:text-3xl">
+              {title}
+            </h2>
+          </div>
+          <Link
+            href="/products"
+            className="inline-flex w-fit items-center gap-2 rounded-md border border-[#d7c7b7] px-4 py-2 text-sm font-bold uppercase tracking-[0.12em] text-[#1e1b18] transition hover:border-accent hover:text-accent"
+          >
+            View all
+          </Link>
+        </div>
+        <p className="mb-6 max-w-2xl text-sm leading-6 text-[#64564c]">
+          {copy}
+        </p>
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {items.map((product) => (
+            <StoreProductCard
+              key={`${title}-${product.id}`}
+              product={product}
+              badge={badge}
+            />
+          ))}
+        </div>
+      </section>
+    );
+  };
+
+  return (
+    <main className="min-h-screen overflow-hidden bg-[#fbf7f2] text-[#1e1b18]">
+      <div className="bg-[#1e1b18] px-5 py-2 text-center text-xs font-black uppercase tracking-[0.18em] text-white sm:px-8">
+        Wholesale only. Request a buyer account before placing bulk orders.
+      </div>
+
+      <header className="bg-white">
+        <div className="mx-auto grid max-w-7xl gap-5 px-5 py-5 sm:px-8 lg:grid-cols-[auto_1fr_auto] lg:items-center">
+          <Link href="/" aria-label="Marky Emporium home">
+            <BrandLogo compact />
+          </Link>
+
+          <form
+            onSubmit={handleSearchSubmit}
+            className="flex min-h-12 items-center overflow-hidden rounded-md border border-[#d7c7b7] bg-[#fbf7f2]"
+          >
+            <FiSearch
+              className="ml-4 shrink-0 text-[#8b6b4d]"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search handbags, nightwear, accessories..."
+              className="h-12 w-full bg-transparent px-3 text-sm text-[#1e1b18] outline-none placeholder:text-[#8b6b4d]"
+            />
+            <button
+              type="submit"
+              className="h-12 bg-accent px-5 text-xs font-black uppercase tracking-[0.14em] text-white transition hover:bg-[#bf2d73]"
+            >
+              Search
+            </button>
+          </form>
+
+          <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 rounded-md border border-[#d7c7b7] px-4 py-2 text-sm font-bold uppercase tracking-[0.12em] text-[#1e1b18] transition hover:border-accent hover:text-accent"
+            >
+              <FiUser aria-hidden="true" />
+              Account
+            </Link>
+            <Link
+              href="/reviews"
+              className="inline-flex items-center gap-2 rounded-md border border-[#d7c7b7] px-4 py-2 text-sm font-bold uppercase tracking-[0.12em] text-[#1e1b18] transition hover:border-accent hover:text-accent"
+            >
+              <FiStar aria-hidden="true" />
+              Reviews
+            </Link>
+            <CartLink className="border-[#1e1b18] text-[#1e1b18]" />
+          </div>
+        </div>
+
+        <nav
+          aria-label="Primary navigation"
+          className="border-y border-[#e8ded4] bg-[#fffdfb]"
+        >
+          <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-5 py-3 sm:px-8 lg:overflow-visible">
+            {megaNav.map((menu) => (
+              <details key={menu.title} className="group relative shrink-0">
+                <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md px-3 py-2 text-sm font-black uppercase tracking-[0.13em] text-[#1e1b18] transition hover:bg-[#f3ebe2] hover:text-accent">
+                  {menu.title}
+                  <FiChevronDown
+                    className="transition group-open:rotate-180"
+                    aria-hidden="true"
+                  />
+                </summary>
+                <div className="z-20 mt-2 w-[min(88vw,34rem)] rounded-md border border-[#e8ded4] bg-white p-5 shadow-[0_18px_50px_rgba(30,27,24,0.16)] lg:absolute">
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    {menu.groups.map((group) => (
+                      <div key={group.title}>
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b26a34]">
+                          {group.title}
+                        </p>
+                        <div className="mt-3 grid gap-2">
+                          {group.links.map((link) => (
+                            <Link
+                              key={link}
+                              href="/products"
+                              className="text-sm font-semibold text-[#64564c] transition hover:text-accent"
+                            >
+                              {link}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </details>
+            ))}
+            <Link
+              href="/products"
+              className="shrink-0 rounded-md px-3 py-2 text-sm font-black uppercase tracking-[0.13em] text-[#1e1b18] transition hover:bg-[#f3ebe2] hover:text-accent"
+            >
+              All products
+            </Link>
+            <button
+              type="button"
+              onClick={scrollToCatalog}
+              className="shrink-0 rounded-md px-3 py-2 text-sm font-black uppercase tracking-[0.13em] text-[#1e1b18] transition hover:bg-[#f3ebe2] hover:text-accent"
+            >
+              Quick shop
+            </button>
+          </div>
+        </nav>
+      </header>
+
+      <section className="mx-auto grid max-w-7xl gap-4 px-5 py-6 sm:px-8 lg:grid-cols-[1.38fr_0.82fr]">
+        <Link
+          href="#catalog"
+          className="group relative min-h-[28rem] overflow-hidden rounded-md bg-[#1e1b18] text-white"
+        >
+          <Image
+            src="/api/logo"
+            alt="Marky Emporium boutique wholesale edit"
+            fill
+            priority
+            sizes="(min-width: 1024px) 60vw, 100vw"
+            unoptimized
+            className="object-cover opacity-65 transition duration-500 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#1e1b18] via-[#1e1b18]/40 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 p-6 sm:p-9">
+            <p className="mb-3 inline-flex items-center gap-2 rounded-md bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#1e1b18]">
+              <FiShoppingBag aria-hidden="true" />
+              New wholesale edit
+            </p>
+            <h1 className="max-w-3xl text-4xl font-black leading-tight sm:text-5xl lg:text-6xl">
+              Boutique fashion stock, organized for fast restocks.
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-white/82 sm:text-lg">
+              Shop handbags, nightwear, accessories, and fresh arrivals through
+              a wholesale-style storefront built for scanning and quick carting.
+            </p>
+          </div>
+        </Link>
+
+        <div className="grid gap-4">
+          {promoTiles.map((tile) => (
+            <Link
+              key={tile.title}
+              href={tile.href}
+              className="group relative min-h-56 overflow-hidden rounded-md bg-[#efe5dc] p-6"
+            >
+              <Image
+                src="/api/logo"
+                alt=""
+                width={176}
+                height={176}
+                unoptimized
+                className="absolute right-4 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full object-cover opacity-45 transition duration-500 group-hover:scale-105 sm:h-44 sm:w-44"
+              />
+              <div className="relative z-10 flex h-full flex-col justify-end">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#b26a34]">
+                  Collection
+                </p>
+                <h2 className="mt-2 max-w-[13rem] text-2xl font-black text-[#1e1b18]">
+                  {tile.title}
+                </h2>
+                <p className="mt-2 max-w-[15rem] text-sm leading-6 text-[#64564c]">
+                  {tile.copy}
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="border-y border-[#e8ded4] bg-white">
+        <div className="mx-auto grid max-w-7xl gap-4 px-5 py-5 sm:px-8 lg:grid-cols-3">
+          {promiseStrip.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <div key={item.title} className="flex items-start gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-md bg-[#1e1b18] text-white">
+                  <Icon aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="font-black text-[#1e1b18]">{item.title}</p>
+                  <p className="mt-1 text-sm leading-6 text-[#64564c]">
+                    {item.copy}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section
+        id="collections"
+        className="mx-auto max-w-7xl px-5 py-12 sm:px-8"
+      >
+        <div className="mb-6 flex flex-col justify-between gap-3 md:flex-row md:items-end">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#b26a34]">
+              Collections
+            </p>
+            <h2 className="mt-2 text-3xl font-black text-[#1e1b18]">
+              Shop the storefront by buyer intent
+            </h2>
+          </div>
+          <Link
+            href="/products"
+            className="inline-flex w-fit rounded-md bg-[#1e1b18] px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-white transition hover:bg-accent"
+          >
+            Open catalog
+          </Link>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {collectionTiles.map((collection, index) => (
+            <Link
+              key={collection}
+              href="/products"
+              className={[
+                "rounded-md border p-5 transition hover:-translate-y-1 hover:border-accent hover:bg-white",
+                index % 3 === 0
+                  ? "border-[#d7c7b7] bg-[#efe5dc]"
+                  : index % 3 === 1
+                    ? "border-[#d6dfd2] bg-[#eef5eb]"
+                    : "border-[#e9d5df] bg-[#fff4f9]",
+              ].join(" ")}
+            >
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b26a34]">
+                Browse
+              </p>
+              <h3 className="mt-3 text-xl font-black text-[#1e1b18]">
+                {collection}
+              </h3>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section id="catalog" className="bg-white py-12">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#b26a34]">
+                Quick shop
+              </p>
+              <h2 className="mt-2 text-3xl font-black text-[#1e1b18]">
+                Fresh stock preview
+              </h2>
+            </div>
+            <p className="max-w-xl text-sm leading-6 text-[#64564c]">
+              A concise edit of handbags, nightwear, accessories, and fresh
+              arrivals for boutique restocks.
+            </p>
+          </div>
+
+          <form
+            onSubmit={handleSearchSubmit}
+            className="mt-6 flex max-w-2xl items-center overflow-hidden rounded-md border border-[#d7c7b7] bg-[#fbf7f2]"
+          >
+            <FiSearch
+              className="ml-4 shrink-0 text-[#8b6b4d]"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search the storefront..."
+              className="h-12 w-full bg-transparent px-3 text-sm text-[#1e1b18] outline-none placeholder:text-[#8b6b4d]"
+            />
+            <button
+              type="submit"
+              className="h-12 bg-accent px-5 text-xs font-black uppercase tracking-[0.14em] text-white transition hover:bg-[#bf2d73]"
+            >
+              Find
+            </button>
+          </form>
+
+          {products.length === 0 ? (
+            <div className="mt-8 rounded-md border border-[#e8ded4] bg-[#fbf7f2] p-8 text-center">
+              <FiPackage
+                className="mx-auto text-4xl text-[#b26a34]"
+                aria-hidden="true"
+              />
+              <h3 className="mt-4 text-2xl font-black text-[#1e1b18]">
+                No products listed yet
+              </h3>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#64564c]">
+                New handbags, nightwear, accessories, and fashion finds will
+                appear here soon.
+              </p>
+            </div>
+          ) : !hasSearchResults ? (
+            <div className="mt-8 rounded-md border border-[#e8ded4] bg-[#fbf7f2] p-8 text-center">
+              <h3 className="text-2xl font-black text-[#1e1b18]">
+                No matching products
+              </h3>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#64564c]">
+                Try searching handbag, nightwear, tote, wallet, or accessory.
+              </p>
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      {renderProductRail(
+        "New arrivals",
+        "The first shelf mirrors a wholesale new-and-restock flow, giving buyers the newest stock without extra clicks.",
+        newArrivals,
+        "New"
+      )}
+
+      {renderProductRail(
+        "Back in stock",
+        "Available items are grouped again for buyers who need sellable stock right now.",
+        restocks,
+        "Restock"
+      )}
+
+      {renderProductRail(
+        "Buyer favorites",
+        "A second product rail keeps browsing moving, similar to best-seller shelves on wholesale stores.",
+        buyerFavorites.length > 0 ? buyerFavorites : newArrivals,
+        "Favorite"
+      )}
+
+      <section className="border-y border-[#e8ded4] bg-[#1e1b18] text-white">
+        <div className="mx-auto grid max-w-7xl gap-6 px-5 py-12 sm:px-8 lg:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f2c078]">
+              Buyer notes
+            </p>
+            <h2 className="mt-3 text-3xl font-black">
+              Confidence signals near the bottom of the storefront.
+            </h2>
+            <Link
+              href="/reviews"
+              className="mt-6 inline-flex items-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-[#1e1b18] transition hover:bg-[#f2c078]"
+            >
+              <FiHeart aria-hidden="true" />
+              Read reviews
+            </Link>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {buyerNotes.map((note) => (
+              <article
+                key={note.title}
+                className="rounded-md border border-white/15 bg-white/8 p-5"
+              >
+                <FiStar className="text-[#f2c078]" aria-hidden="true" />
+                <h3 className="mt-4 font-black">{note.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-white/72">
+                  {note.copy}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <footer className="bg-white px-5 py-10 sm:px-8">
+        <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-[1.2fr_0.8fr_0.8fr]">
+          <div>
+            <BrandLogo compact />
+            <p className="mt-4 max-w-xl text-sm leading-7 text-[#64564c]">
+              Marky Emporium is arranged as a boutique wholesale storefront for
+              handbags, nightwear, accessories, and fashion restocks.
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#b26a34]">
+              Information
+            </p>
+            <div className="mt-4 grid gap-2 text-sm font-semibold text-[#64564c]">
+              <Link href="/products" className="transition hover:text-accent">
+                Catalog
+              </Link>
+              <Link href="/reviews" className="transition hover:text-accent">
+                Reviews
+              </Link>
+              <Link href="/cart" className="transition hover:text-accent">
+                Cart
+              </Link>
+              <Link href="/login" className="transition hover:text-accent">
+                Admin
+              </Link>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#b26a34]">
+              Storefront
+            </p>
+            <p className="mt-4 text-sm leading-7 text-[#64564c]">
+              Browse with a buyer account, review the cart, and prepare the
+              next boutique stock order.
+            </p>
+          </div>
+        </div>
+        <p className="mx-auto mt-8 max-w-7xl border-t border-[#e8ded4] pt-5 text-sm text-[#8b6b4d]">
+          Copyright 2026 Marky Emporium. Boutique fashion, ready to restock.
+        </p>
+      </footer>
+    </main>
+  );
+}

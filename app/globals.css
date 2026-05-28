@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: linear-gradient(180deg, #fff7fc 0%, #fff0f8 45%, #f8ddea 100%);
+  color: #24151d;
+  scrollbar-gutter: stable;
+}
+
+::selection {
+  background: #d83c86;
+  color: #fff7fc;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+}

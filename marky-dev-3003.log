@@ -1,0 +1,17 @@
+
+> marky-emporium@0.1.0 dev
+> next dev --webpack --port 3003
+
+▲ Next.js 16.2.6 (webpack)
+- Local:         http://localhost:3003
+- Network:       http://192.168.137.1:3003
+✓ Ready in 744ms
+⨯ Another next dev server is already running.
+
+- Local:        http://localhost:3002
+- PID:          24468
+- Dir:          C:\Users\new user\Documents\hairbrand\marky-emporium
+- Log:          .next\dev\logs\next-development.log
+
+Run taskkill /PID 24468 /F to stop it.
+[?25h
