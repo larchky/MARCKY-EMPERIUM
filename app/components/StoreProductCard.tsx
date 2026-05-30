@@ -8,6 +8,7 @@ import {
   getProductStock,
   type Product,
 } from "@/lib/productImages";
+import { getProductCategoryLabelForProduct } from "@/lib/productCategories";
 import AddToCartButton from "@/app/components/AddToCartButton";
 import Product360Viewer from "@/app/components/Product360Viewer";
 
@@ -33,6 +34,7 @@ export default function StoreProductCard({
   badge,
 }: StoreProductCardProps) {
   const imageUrl = getProductDisplayImageUrl(product);
+  const categoryLabel = getProductCategoryLabelForProduct(product);
   const rotationImageUrls = getProductImageUrls(product.rotation_image_urls);
   const rotationImageRows = getProductImageRows(
     product.rotation_image_rows,
@@ -79,7 +81,7 @@ export default function StoreProductCard({
             {product.name}
           </h3>
           <p className="shrink-0 rounded-md bg-[#fff4f9] px-2 py-1 text-[0.68rem] font-black uppercase tracking-[0.12em] text-accent">
-            Wholesale
+            {categoryLabel}
           </p>
         </div>
 

@@ -14,37 +14,37 @@ import {
 } from "react-icons/fi";
 import { supabase } from "@/lib/supabaseClient";
 import { getProductStock, type Product } from "@/lib/productImages";
+import {
+  ALL_CATEGORIES_LABEL,
+  PRODUCT_INTENTS,
+  PRODUCT_CATEGORIES,
+  normalizeProductIntent,
+  productMatchesCategory,
+  productMatchesIntent,
+} from "@/lib/productCategories";
 import BrandLogo from "@/app/components/BrandLogo";
 import CartLink from "@/app/components/CartLink";
 import StoreProductCard from "@/app/components/StoreProductCard";
 
 const categoryFilters = [
   {
-    label: "All categories",
-    keywords: [],
+    label: ALL_CATEGORIES_LABEL,
+    value: "all",
   },
-  {
-    label: "Handbags",
-    keywords: ["handbag", "bag", "tote", "satchel", "crossbody", "clutch"],
-  },
-  {
-    label: "Nightwear",
-    keywords: ["nightwear", "sleep", "satin", "robe", "lounge", "slip"],
-  },
-  {
-    label: "Accessories",
-    keywords: ["wallet", "strap", "accessory", "jewelry", "hair", "hat"],
-  },
-  {
-    label: "New stock",
-    keywords: ["new", "arrival", "restock", "fashion"],
-  },
+  ...PRODUCT_CATEGORIES,
 ];
 
 const availabilityFilters = ["All stock", "In stock", "Out of stock"];
+const intentFilters = [
+  {
+    label: "All edits",
+    value: "all",
+  },
+  ...PRODUCT_INTENTS,
+];
 
 function getSearchText(product: Product) {
-  return `${product.name} ${product.description || ""}`.toLowerCase();
+  return `${product.name} ${product.category || ""} ${product.description || ""}`.toLowerCase();
 }
 
 function getComparableId(product: Product) {
@@ -85,11 +85,50 @@ function sortProducts(products: Product[], sortOrder: string) {
   });
 }
 
+function getCurrentSearchParams() {
+  if (typeof window === "undefined") return null;
+
+  return new URLSearchParams(window.location.search);
+}
+
+function getCategoryFilterFromUrl() {
+  const categoryParam = getCurrentSearchParams()?.get("category");
+  const matchingCategory = categoryFilters.find(
+    (filter) =>
+      filter.label.toLowerCase() === String(categoryParam).toLowerCase() ||
+      filter.value.toLowerCase() === String(categoryParam).toLowerCase()
+  );
+
+  return matchingCategory?.label || ALL_CATEGORIES_LABEL;
+}
+
+function getAvailabilityFilterFromUrl() {
+  const availabilityParam = getCurrentSearchParams()?.get("availability");
+
+  return availabilityParam && availabilityFilters.includes(availabilityParam)
+    ? availabilityParam
+    : "All stock";
+}
+
+function getSearchTermFromUrl() {
+  return getCurrentSearchParams()?.get("search") || "";
+}
+
+function getIntentFilterFromUrl() {
+  const intentParam = getCurrentSearchParams()?.get("intent");
+  const matchingIntent = normalizeProductIntent(intentParam);
+
+  return matchingIntent?.value || "all";
+}
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("All categories");
-  const [availabilityFilter, setAvailabilityFilter] = useState("All stock");
+  const [searchTerm, setSearchTerm] = useState(getSearchTermFromUrl);
+  const [categoryFilter, setCategoryFilter] = useState(getCategoryFilterFromUrl);
+  const [availabilityFilter, setAvailabilityFilter] = useState(
+    getAvailabilityFilterFromUrl
+  );
+  const [intentFilter, setIntentFilter] = useState(getIntentFilterFromUrl);
   const [sortOrder, setSortOrder] = useState("newest");
   const [displayCount, setDisplayCount] = useState(24);
   const [viewMode, setViewMode] = useState<"grid" | "compact">("grid");
@@ -133,18 +172,24 @@ export default function ProductsPage() {
         normalizedSearch.length === 0 ||
         searchableText.includes(normalizedSearch);
       const matchesCategory =
-        !selectedCategory?.keywords.length ||
-        selectedCategory.keywords.some((keyword) =>
-          searchableText.includes(keyword)
-        );
+        !selectedCategory ||
+        selectedCategory.label === ALL_CATEGORIES_LABEL ||
+        productMatchesCategory(product, selectedCategory.label);
       const matchesAvailability =
         availabilityFilter === "All stock" ||
         (availabilityFilter === "In stock" && stockQuantity > 0) ||
         (availabilityFilter === "Out of stock" && stockQuantity <= 0);
+      const matchesIntent =
+        intentFilter === "all" || productMatchesIntent(product, intentFilter);
 
-      return matchesSearch && matchesCategory && matchesAvailability;
+      return (
+        matchesSearch &&
+        matchesCategory &&
+        matchesAvailability &&
+        matchesIntent
+      );
     });
-  }, [availabilityFilter, products, searchTerm, selectedCategory]);
+  }, [availabilityFilter, intentFilter, products, searchTerm, selectedCategory]);
 
   const sortedProducts = useMemo(
     () => sortProducts(filteredProducts, sortOrder),
@@ -153,14 +198,47 @@ export default function ProductsPage() {
   const visibleProducts = sortedProducts.slice(0, displayCount);
   const hasActiveFilters =
     searchTerm.trim().length > 0 ||
-    categoryFilter !== "All categories" ||
-    availabilityFilter !== "All stock";
+    categoryFilter !== ALL_CATEGORIES_LABEL ||
+    availabilityFilter !== "All stock" ||
+    intentFilter !== "all";
+
+  const updateCategoryFilter = (label: string) => {
+    setCategoryFilter(label);
+    setDisplayCount(24);
+
+    const url = new URL(window.location.href);
+
+    if (label === ALL_CATEGORIES_LABEL) {
+      url.searchParams.delete("category");
+    } else {
+      url.searchParams.set("category", label);
+    }
+
+    window.history.replaceState(null, "", url);
+  };
 
   const clearFilters = () => {
     setSearchTerm("");
-    setCategoryFilter("All categories");
+    setCategoryFilter(ALL_CATEGORIES_LABEL);
     setAvailabilityFilter("All stock");
+    setIntentFilter("all");
     setDisplayCount(24);
+    window.history.replaceState(null, "", window.location.pathname);
+  };
+
+  const updateIntentFilter = (value: string) => {
+    setIntentFilter(value);
+    setDisplayCount(24);
+
+    const url = new URL(window.location.href);
+
+    if (value === "all") {
+      url.searchParams.delete("intent");
+    } else {
+      url.searchParams.set("intent", value);
+    }
+
+    window.history.replaceState(null, "", url);
   };
 
   return (
@@ -202,7 +280,7 @@ export default function ProductsPage() {
               <button
                 key={filter.label}
                 type="button"
-                onClick={() => setCategoryFilter(filter.label)}
+                onClick={() => updateCategoryFilter(filter.label)}
                 className={[
                   "shrink-0 rounded-md px-3 py-2 text-sm font-black uppercase tracking-[0.13em] transition",
                   categoryFilter === filter.label
@@ -286,9 +364,9 @@ export default function ProductsPage() {
             <div className="mt-3 grid gap-2">
               {categoryFilters.map((filter) => (
                 <button
-                  key={filter.label}
-                  type="button"
-                  onClick={() => setCategoryFilter(filter.label)}
+                key={filter.label}
+                type="button"
+                  onClick={() => updateCategoryFilter(filter.label)}
                   className={[
                     "rounded-md border px-3 py-2 text-left text-sm font-semibold transition",
                     categoryFilter === filter.label
@@ -320,6 +398,29 @@ export default function ProductsPage() {
                   ].join(" ")}
                 >
                   {filter}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b26a34]">
+              Buyer edit
+            </p>
+            <div className="mt-3 grid gap-2">
+              {intentFilters.map((filter) => (
+                <button
+                  key={filter.value}
+                  type="button"
+                  onClick={() => updateIntentFilter(filter.value)}
+                  className={[
+                    "rounded-md border px-3 py-2 text-left text-sm font-semibold transition",
+                    intentFilter === filter.value
+                      ? "border-[#1e1b18] bg-[#1e1b18] text-white"
+                      : "border-[#e8ded4] text-[#64564c] hover:border-accent hover:text-accent",
+                  ].join(" ")}
+                >
+                  {filter.label}
                 </button>
               ))}
             </div>
@@ -423,7 +524,7 @@ export default function ProductsPage() {
                     Search: {searchTerm}
                   </span>
                 )}
-                {categoryFilter !== "All categories" && (
+                {categoryFilter !== ALL_CATEGORIES_LABEL && (
                   <span className="rounded-md bg-[#eef5eb] px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-[#4d7d56]">
                     {categoryFilter}
                   </span>
@@ -431,6 +532,11 @@ export default function ProductsPage() {
                 {availabilityFilter !== "All stock" && (
                   <span className="rounded-md bg-[#efe5dc] px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-[#8b6b4d]">
                     {availabilityFilter}
+                  </span>
+                )}
+                {intentFilter !== "all" && (
+                  <span className="rounded-md bg-[#fff4f9] px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-accent">
+                    {normalizeProductIntent(intentFilter)?.label || "Buyer edit"}
                   </span>
                 )}
               </div>

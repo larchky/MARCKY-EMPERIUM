@@ -16,7 +16,20 @@ import {
   FiUser,
 } from "react-icons/fi";
 import { supabase } from "@/lib/supabaseClient";
-import { getProductStock, type Product } from "@/lib/productImages";
+import {
+  getProductDisplayImageUrl,
+  getProductStock,
+  type Product,
+} from "@/lib/productImages";
+import {
+  getCategoryHref,
+  getCategoryProducts,
+  getIntentHref,
+  getIntentProducts,
+  getProductCategoryLabelForProduct,
+  productMatchesCategory,
+  productMatchesIntent,
+} from "@/lib/productCategories";
 import BrandLogo from "@/app/components/BrandLogo";
 import CartLink from "@/app/components/CartLink";
 import StoreProductCard from "@/app/components/StoreProductCard";
@@ -79,25 +92,59 @@ const megaNav = [
 const promoTiles = [
   {
     title: "Handbag wall",
+    category: "Handbags",
     copy: "Structured totes, crossbody bags, clutches, and easy event pieces.",
-    href: "/products",
   },
   {
     title: "Nightwear edit",
+    category: "Nightwear",
     copy: "Soft sets, robes, slips, and loungewear for quick boutique refreshes.",
-    href: "/products",
   },
 ];
 
 const collectionTiles = [
-  "Back in stock",
-  "Totes",
-  "Crossbody bags",
-  "Nightwear sets",
-  "Accessories",
-  "Giftable picks",
-  "Event pieces",
-  "New arrivals",
+  {
+    title: "Back in stock",
+    availability: "In stock",
+    copy: "Available products ready for buyers to add to cart.",
+  },
+  {
+    title: "Totes",
+    category: "Handbags",
+    search: "tote",
+    copy: "Roomy handbag styles grouped for fast restocks.",
+  },
+  {
+    title: "Crossbody bags",
+    category: "Handbags",
+    search: "crossbody",
+    copy: "Hands-free bag picks from the handbag wall.",
+  },
+  {
+    title: "Nightwear sets",
+    category: "Nightwear",
+    copy: "Sleepwear and lounge pieces for the nightwear shelf.",
+  },
+  {
+    title: "Accessories",
+    category: "Accessories",
+    copy: "Wallets, straps, jewelry, hair pieces, and finishing items.",
+  },
+  {
+    title: "Giftable picks",
+    intent: "giftable",
+    copy: "Small, easy-to-sell products for gifting moments.",
+  },
+  {
+    title: "Event pieces",
+    intent: "event",
+    copy: "Statement pieces that work well for occasion buying.",
+  },
+  {
+    title: "New arrivals",
+    category: "New stock",
+    copy: "Freshly added pieces from the newest stock category.",
+  },
 ];
 
 const promiseStrip = [
@@ -140,6 +187,121 @@ function scrollToCatalog() {
   });
 }
 
+function formatCurrency(value: number | string) {
+  const amount = Number(value);
+
+  if (!Number.isFinite(amount)) return "NGN 0";
+
+  return new Intl.NumberFormat("en-NG", {
+    currency: "NGN",
+    maximumFractionDigits: 0,
+    style: "currency",
+  }).format(amount);
+}
+
+function getCollectionHref(collection: (typeof collectionTiles)[number]) {
+  const params = new URLSearchParams();
+
+  if ("intent" in collection && collection.intent) {
+    return getIntentHref(collection.intent);
+  }
+
+  if ("category" in collection && collection.category) {
+    params.set("category", collection.category);
+  }
+
+  if ("availability" in collection && collection.availability) {
+    params.set("availability", collection.availability);
+  }
+
+  if (!params.has("category") && "search" in collection && collection.search) {
+    params.set("search", collection.search);
+  }
+
+  return `/products${params.toString() ? `?${params.toString()}` : ""}`;
+}
+
+function getProductImageAlt(product: Product) {
+  return product.name || "Marky Emporium product";
+}
+
+function ProductImageStrip({
+  products,
+  title,
+}: {
+  products: Product[];
+  title: string;
+}) {
+  const productsWithImages = products
+    .map((product) => ({
+      imageUrl: getProductDisplayImageUrl(product),
+      product,
+    }))
+    .filter((item): item is { imageUrl: string; product: Product } =>
+      Boolean(item.imageUrl)
+    )
+    .slice(0, 3);
+
+  if (productsWithImages.length === 0) {
+    return (
+      <div className="grid h-36 place-items-center rounded-md border border-[#d7c7b7] bg-white/70 text-center text-[#8b6b4d]">
+        <FiPackage className="text-3xl" aria-hidden="true" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid h-36 grid-cols-3 gap-2">
+      {productsWithImages.map(({ imageUrl, product }, index) => (
+        <div
+          key={`${title}-${product.id}-${index}`}
+          role="img"
+          aria-label={getProductImageAlt(product)}
+          className="h-full min-w-0 rounded-md border border-white/70 bg-white object-cover shadow-[0_10px_22px_rgba(30,27,24,0.12)]"
+          style={{
+            backgroundImage: `url("${imageUrl}")`,
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function getProductSearchText(product: Product) {
+  return `${product.name} ${product.category || ""} ${
+    product.description || ""
+  }`.toLowerCase();
+}
+
+function getMenuCategory(menuTitle: string) {
+  if (menuTitle === "HANDBAGS") return "Handbags";
+  if (menuTitle === "NIGHTWEAR") return "Nightwear";
+  if (menuTitle === "ACCESSORIES") return "Accessories";
+  if (menuTitle === "NEW & RESTOCK") return "New stock";
+
+  return "";
+}
+
+function getMenuLinkHref(menuTitle: string, link: string) {
+  const params = new URLSearchParams();
+  const category = getMenuCategory(menuTitle);
+
+  if (category) {
+    params.set("category", category);
+  }
+
+  if (link === "Back in stock" || link === "Low stock alerts") {
+    params.set("availability", "In stock");
+  } else {
+    params.set("search", link);
+  }
+
+  return `/products?${params.toString()}`;
+}
+
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -158,15 +320,66 @@ export default function Home() {
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const filteredProducts = products.filter((product) => {
-    const searchableText = `${product.name} ${product.description || ""}`;
-    return searchableText.toLowerCase().includes(normalizedSearch);
+    return getProductSearchText(product).includes(normalizedSearch);
   });
   const newArrivals = filteredProducts.slice(0, 8);
   const restocks = filteredProducts
     .filter((product) => getProductStock(product) > 0)
     .slice(0, 8);
+  const handbagProducts = getCategoryProducts(products, "Handbags", 4);
+  const nightwearProducts = getCategoryProducts(products, "Nightwear", 4);
+  const giftableProducts = getIntentProducts(products, "giftable", 8);
+  const eventProducts = getIntentProducts(products, "event", 8);
+  const newStockProducts = getCategoryProducts(filteredProducts, "New stock", 8);
   const buyerFavorites = filteredProducts.slice(2, 10);
   const hasSearchResults = filteredProducts.length > 0;
+
+  const getCollectionProducts = (
+    collection: (typeof collectionTiles)[number]
+  ) => {
+    const normalizedSearch =
+      "search" in collection ? String(collection.search || "").toLowerCase() : "";
+    const hasCategory = "category" in collection && Boolean(collection.category);
+    const hasIntent = "intent" in collection && Boolean(collection.intent);
+
+    const filterProducts = (useSearch: boolean) =>
+      products.filter((product) => {
+        const matchesCategory =
+          !("category" in collection) ||
+          !collection.category ||
+          productMatchesCategory(product, collection.category);
+        const matchesAvailability =
+          !("availability" in collection) ||
+          collection.availability !== "In stock" ||
+          getProductStock(product) > 0;
+        const matchesIntent =
+          !hasIntent ||
+          !("intent" in collection) ||
+          productMatchesIntent(product, collection.intent);
+        const matchesSearch =
+          !useSearch ||
+          !normalizedSearch ||
+          getProductSearchText(product).includes(normalizedSearch);
+
+        return (
+          matchesCategory &&
+          matchesAvailability &&
+          matchesIntent &&
+          matchesSearch
+        );
+      });
+
+    const exactProducts = filterProducts(true);
+    const fallbackProducts =
+      exactProducts.length === 0 && normalizedSearch && hasCategory
+        ? filterProducts(false)
+        : [];
+
+    return (exactProducts.length > 0 ? exactProducts : fallbackProducts).slice(
+      0,
+      3
+    );
+  };
 
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -177,7 +390,8 @@ export default function Home() {
     title: string,
     copy: string,
     items: Product[],
-    badge: string
+    badge: string,
+    href = "/products"
   ) => {
     if (products.length === 0 || items.length === 0) return null;
 
@@ -193,7 +407,7 @@ export default function Home() {
             </h2>
           </div>
           <Link
-            href="/products"
+            href={href}
             className="inline-flex w-fit items-center gap-2 rounded-md border border-[#d7c7b7] px-4 py-2 text-sm font-bold uppercase tracking-[0.12em] text-[#1e1b18] transition hover:border-accent hover:text-accent"
           >
             View all
@@ -294,7 +508,7 @@ export default function Home() {
                           {group.links.map((link) => (
                             <Link
                               key={link}
-                              href="/products"
+                              href={getMenuLinkHref(menu.title, link)}
                               className="text-sm font-semibold text-[#64564c] transition hover:text-accent"
                             >
                               {link}
@@ -355,33 +569,52 @@ export default function Home() {
         </Link>
 
         <div className="grid gap-4">
-          {promoTiles.map((tile) => (
-            <Link
-              key={tile.title}
-              href={tile.href}
-              className="group relative min-h-56 overflow-hidden rounded-md bg-[#efe5dc] p-6"
-            >
-              <Image
-                src="/api/logo"
-                alt=""
-                width={176}
-                height={176}
-                unoptimized
-                className="absolute right-4 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full object-cover opacity-45 transition duration-500 group-hover:scale-105 sm:h-44 sm:w-44"
-              />
-              <div className="relative z-10 flex h-full flex-col justify-end">
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#b26a34]">
-                  Collection
-                </p>
-                <h2 className="mt-2 max-w-[13rem] text-2xl font-black text-[#1e1b18]">
-                  {tile.title}
-                </h2>
-                <p className="mt-2 max-w-[15rem] text-sm leading-6 text-[#64564c]">
-                  {tile.copy}
-                </p>
-              </div>
-            </Link>
-          ))}
+          {promoTiles.map((tile) => {
+            const tileProducts = getCategoryProducts(products, tile.category, 4);
+
+            return (
+              <Link
+                key={tile.title}
+                href={getCategoryHref(tile.category)}
+                className="group relative grid min-h-72 overflow-hidden rounded-md bg-[#efe5dc] p-5"
+              >
+                <ProductImageStrip products={tileProducts} title={tile.title} />
+                <div className="relative z-10 mt-5 flex h-full flex-col justify-end">
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-[#b26a34]">
+                    {tile.category}
+                  </p>
+                  <h2 className="mt-2 max-w-[13rem] text-2xl font-black text-[#1e1b18]">
+                    {tile.title}
+                  </h2>
+                  <p className="mt-2 max-w-[15rem] text-sm leading-6 text-[#64564c]">
+                    {tile.copy}
+                  </p>
+                  {tileProducts.length > 0 && (
+                    <div className="mt-4 grid gap-2">
+                      {tileProducts.slice(0, 3).map((product) => (
+                        <div
+                          key={`${tile.title}-${product.id}`}
+                          className="flex max-w-sm items-center justify-between gap-3 rounded-md border border-[#d7c7b7] bg-white/80 px-3 py-2 text-sm"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate font-bold text-[#1e1b18]">
+                              {product.name}
+                            </span>
+                            <span className="block text-[0.68rem] font-black uppercase tracking-[0.12em] text-[#8b6b4d]">
+                              {getProductCategoryLabelForProduct(product)}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-xs font-black text-accent">
+                            {formatCurrency(product.price)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -429,27 +662,60 @@ export default function Home() {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {collectionTiles.map((collection, index) => (
-            <Link
-              key={collection}
-              href="/products"
-              className={[
-                "rounded-md border p-5 transition hover:-translate-y-1 hover:border-accent hover:bg-white",
-                index % 3 === 0
-                  ? "border-[#d7c7b7] bg-[#efe5dc]"
-                  : index % 3 === 1
-                    ? "border-[#d6dfd2] bg-[#eef5eb]"
-                    : "border-[#e9d5df] bg-[#fff4f9]",
-              ].join(" ")}
-            >
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b26a34]">
-                Browse
-              </p>
-              <h3 className="mt-3 text-xl font-black text-[#1e1b18]">
-                {collection}
-              </h3>
-            </Link>
-          ))}
+          {collectionTiles.map((collection, index) => {
+            const collectionProducts = getCollectionProducts(collection);
+
+            return (
+              <Link
+                key={collection.title}
+                href={getCollectionHref(collection)}
+                className={[
+                  "rounded-md border p-5 transition hover:-translate-y-1 hover:border-accent hover:bg-white",
+                  index % 3 === 0
+                    ? "border-[#d7c7b7] bg-[#efe5dc]"
+                    : index % 3 === 1
+                      ? "border-[#d6dfd2] bg-[#eef5eb]"
+                      : "border-[#e9d5df] bg-[#fff4f9]",
+                ].join(" ")}
+              >
+                <ProductImageStrip
+                  products={collectionProducts}
+                  title={collection.title}
+                />
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b26a34]">
+                  {collectionProducts.length} listed
+                </p>
+                <h3 className="mt-3 text-xl font-black text-[#1e1b18]">
+                  {collection.title}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-[#64564c]">
+                  {collection.copy}
+                </p>
+                {collectionProducts.length > 0 && (
+                  <div className="mt-4 grid gap-2 border-t border-[#d7c7b7] pt-3">
+                    {collectionProducts.map((product) => (
+                      <div
+                        key={`${collection.title}-${product.id}`}
+                        className="flex items-center justify-between gap-3"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-bold text-[#1e1b18]">
+                            {product.name}
+                          </span>
+                          <span className="block text-[0.68rem] font-black uppercase tracking-[0.12em] text-[#8b6b4d]">
+                            {getProductCategoryLabelForProduct(product)}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-xs font-black text-accent">
+                          {formatCurrency(product.price)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -521,17 +787,51 @@ export default function Home() {
       </section>
 
       {renderProductRail(
+        "Handbag wall",
+        "Handbags are grouped together so buyers can open the full handbag section without sorting through nightwear or accessories.",
+        handbagProducts,
+        "Handbags",
+        getCategoryHref("Handbags")
+      )}
+
+      {renderProductRail(
+        "Nightwear edit",
+        "Nightwear has its own shelf for satin sets, robes, loungewear, and sleep pieces.",
+        nightwearProducts,
+        "Nightwear",
+        getCategoryHref("Nightwear")
+      )}
+
+      {renderProductRail(
         "New arrivals",
         "The first shelf mirrors a wholesale new-and-restock flow, giving buyers the newest stock without extra clicks.",
-        newArrivals,
-        "New"
+        newStockProducts.length > 0 ? newStockProducts : newArrivals,
+        "New",
+        getCategoryHref("New stock")
       )}
 
       {renderProductRail(
         "Back in stock",
         "Available items are grouped again for buyers who need sellable stock right now.",
         restocks,
-        "Restock"
+        "Restock",
+        "/products?availability=In%20stock"
+      )}
+
+      {renderProductRail(
+        "Giftable picks",
+        "Products marked in admin as giftable are grouped here for buyers building easy gifting bundles.",
+        giftableProducts,
+        "Giftable",
+        getIntentHref("giftable")
+      )}
+
+      {renderProductRail(
+        "Event pieces",
+        "Products marked in admin for events are grouped here for buyers shopping occasion-ready stock.",
+        eventProducts,
+        "Event",
+        getIntentHref("event")
       )}
 
       {renderProductRail(

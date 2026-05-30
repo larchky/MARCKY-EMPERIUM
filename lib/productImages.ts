@@ -6,9 +6,12 @@ export type Product = {
   id: number | string;
   name: string;
   price: number;
+  category?: string | null;
   description: string | null;
   image_url: string | null;
   stock_quantity?: number | null;
+  is_giftable?: boolean | null;
+  is_event_pick?: boolean | null;
   rotation_image_urls?: string[] | null;
   rotation_image_rows?: string[][] | null;
 };
