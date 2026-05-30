@@ -544,12 +544,11 @@ export default function Home() {
           className="group relative min-h-[28rem] overflow-hidden rounded-md bg-[#1e1b18] text-white"
         >
           <Image
-            src="/api/logo"
+            src="/marky-storefront-hero.png"
             alt="Marky Emporium boutique wholesale edit"
             fill
             priority
             sizes="(min-width: 1024px) 60vw, 100vw"
-            unoptimized
             className="object-cover opacity-65 transition duration-500 group-hover:scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#1e1b18] via-[#1e1b18]/40 to-transparent" />
