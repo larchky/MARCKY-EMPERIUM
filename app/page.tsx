@@ -847,7 +847,7 @@ export default function Home() {
               Buyer notes
             </p>
             <h2 className="mt-3 text-3xl font-black">
-              Confidence signals near the bottom of the storefront.
+              Shop with confidence.
             </h2>
             <Link
               href="/reviews"
@@ -880,8 +880,7 @@ export default function Home() {
           <div>
             <BrandLogo compact />
             <p className="mt-4 max-w-xl text-sm leading-7 text-[#64564c]">
-              Marky Emporium is arranged as a boutique wholesale storefront for
-              handbags, nightwear, accessories, and fashion restocks.
+              Marky Emporium is the best store for handbags, nightwear, accessories, and fashion restocks.
             </p>
           </div>
 
@@ -910,8 +909,7 @@ export default function Home() {
               Storefront
             </p>
             <p className="mt-4 text-sm leading-7 text-[#64564c]">
-              Browse with a buyer account, review the cart, and prepare the
-              next boutique stock order.
+              Order and receive your favorite pieces.
             </p>
           </div>
         </div>
