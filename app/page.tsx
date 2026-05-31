@@ -167,7 +167,7 @@ const promiseStrip = [
 
 const buyerNotes = [
   {
-    title: "Great mix for small boutiques",
+    title: "Great mix for your fashion style",
     copy: "Curated fashion pieces make it easier to build a focused restock.",
   },
   {
@@ -176,7 +176,7 @@ const buyerNotes = [
   },
   {
     title: "Clear product decisions",
-    copy: "Product cards show stock, price, photos, and add-to-cart actions.",
+    copy: "Real product experience with detailed information and images.",
   },
 ];
 
